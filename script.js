@@ -5,6 +5,12 @@ const questionInput = document.getElementById("question");
 const aiResponse = document.getElementById("aiResponse");
 const btnAsk = document.getElementById("btnAsk");
 
+// CONFIGURACOES DA API GEMINI
+const CONFIG = {
+    API_BASE_URL: "https://generativelanguage.googleapis.com/v1beta",
+    MODEL: "gemini-2.5-flash"
+}
+
 const toggleBtnAsk = (estate) => {
     btnAsk.disabled = estate; /* Desabilita o botão para evitar múltiplos envios */
     btnAsk.textContent = estate ? "Perguntando..." : "Perguntar";
@@ -50,11 +56,20 @@ const buildPrompt = (game, question) => {
         - ${question}`;
 }
 
+const displayError = (message) => {
+    // Cria e exibe a mensagem de erro no HTML
+    aiResponse.innerHTML = `
+    <svg class="icon-error"><use xlink:href="#icon-error"></use></svg>
+    <p>${message}</p>
+    `;
+    aiResponse.classList.add("error"); /* Adiciona classe de erro para estilização */
+    aiResponse.classList.remove("hidden");  /* Exibe a resposta de erro em tela */
+}
+
 // Função para perguntar à IA usando a API Gemini
 const perguntarIA = async (apiKey, prompt) => {
-    // configurações da API Gemini
-    const model = "gemini-2.5-flash";
-    const geminiURL =  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    // URL de comunicação com a API Gemini
+    const geminiURL = `${CONFIG.API_BASE_URL}/models/${CONFIG.MODEL}:generateContent?key=${apiKey}`;
 
     // conteúdo do body da requisição
     const contents = [{
@@ -79,9 +94,23 @@ const perguntarIA = async (apiKey, prompt) => {
         })
     });
 
-    // resposta obtida da API
+    // Verifica se a requisição foi bem-sucedida
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error("Ocorreu um erro ao processar sua pergunta. Verifique sua API Key ou tente novamente.", 
+            { cause:`Erro da API: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`}
+        );
+    }
+
+    // Verifica a resposta fornecida pela API
     const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
+    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!responseText) {
+        throw new Error("Não foi possível obter uma resposta da IA. A resposta pode estar vazia ou em um formato inesperado.",
+            { cause: "O texto de resposta da IA está vazio ou o caminho até ele, no objeto de retorno da API, está diferente do padrão esperado." }
+        );
+    }
+    return responseText;
 }
 
 // Função chamada quando o formulário é submetido em tela
@@ -90,7 +119,7 @@ const enviarFormulario = async (event) => {
 
     // Obtém os valores dos campos do formulário
     const apiKey = apiKeyInput.value;
-    const game = gameSelected.options[gameSelected.selectedIndex].text;
+    const game = gameSelected.value;
     const question = questionInput.value;
 
     // Verifica se todos os campos estão preenchidos
@@ -101,12 +130,18 @@ const enviarFormulario = async (event) => {
 
     toggleBtnAsk(true); /* Desabilita o botão enquanto a pergunta está sendo enviada */
     try {
+        // Limpa o conteúdo e remove a classe de erro, caso exista de uma tentativa anterior
+        aiResponse.innerHTML = "";
+        aiResponse.classList.remove("error");
+
         const text = await perguntarIA(apiKey, buildPrompt(game, question));
-        aiResponse.querySelector(".response-content").innerHTML = markdownToHTML(text);
+        aiResponse.innerHTML = markdownToHTML(text);
         aiResponse.classList.remove("hidden"); /* Exibe a resposta da IA */
     } catch (error) {
-        console.error("Descrição do erro ao enviar a pergunta:", error);
-        alert("Ocorreu um erro ao enviar a sua pergunta. Por favor, tente novamente mais tarde.");
+        // Exibe a mensagem de erro no console
+        console.error(error);
+        // Exibe a mensagem de erro na interface
+        displayError(error.message);
     } finally {
         toggleBtnAsk(false); /* Reabilita o botão após a tentativa de envio */
     }

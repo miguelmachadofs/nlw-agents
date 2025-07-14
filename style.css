@@ -13,6 +13,10 @@
     - A ordem de prioridade é: inline styles > IDs > classes > elementos.
 */
 
+:root {
+    --cor-erro-resposta: #ff5555;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -156,6 +160,15 @@ button:disabled {
     color: white;
 }
 
+#aiResponse.error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    background-color: rgba(255, 85, 85, 0.1);
+    border-left-color: var(--cor-erro-resposta);
+}
+
 .loading {
     animation: pulse 1s infinite;
 }
@@ -168,4 +181,10 @@ button:disabled {
 
 .hidden {
     display: none;
+}
+
+.icon-error {
+    width: 24px;
+    height: 24px;
+    fill: var(--cor-erro-resposta);
 }
