@@ -97,6 +97,11 @@ const perguntarIA = async (apiKey, prompt) => {
     // Verifica se a requisição foi bem-sucedida
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        if (response.status === 429) {  //RESOURCE_EXHAUSTED
+            throw new Error("Limite de requisições excedido. Por favor, tente novamente mais tarde.",
+                { cause: `Erro da API: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}` }
+            );
+        }
         throw new Error("Ocorreu um erro ao processar sua pergunta. Verifique sua API Key ou tente novamente.", 
             { cause:`Erro da API: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`}
         );
